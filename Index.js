@@ -4,6 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const User = require("./Model/User");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 app.use(cors());
 app.use(express.json());
@@ -15,11 +16,12 @@ mongoose.connect("mongodb://localhost:27017/todo-database", {
 app.post("/api/register", async (req, res) => {
   console.log(req.body);
   try {
+    const newPassword = await bcrypt.hash(req.body.password, 10); //(what you want to hash, no of cycles)
     const user = await User.create({
       email: req.body.email,
       firstName: req.body.firstName,
       lastName: req.body.lastName,
-      password: req.body.password,
+      password: newPassword,
     });
     res.json({ status: "ok" });
   } catch (error) {
@@ -30,10 +32,16 @@ app.post("/api/register", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   const user = await User.findOne({
     email: req.body.email,
-    password: req.body.password,
   });
+  if (!user) {
+    return res.json({ status: "error", error: "Invalid login" });
+  }
+  const isPasswordValid = await bcrypt.compare(
+    req.body.password,
+    user.password
+  ); //(the string to compare and the hash)
 
-  if (user) {
+  if (isPasswordValid) {
     const token = jwt.sign(
       {
         email: user.email,
