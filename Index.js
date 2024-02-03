@@ -58,12 +58,28 @@ app.post("/api/login", async (req, res) => {
 app.get("/api/home", async (req, res) => {
   const token = req.headers["x-access-token"];
   try {
+    if (!token) {
+      return res.json({ status: "error", error: "Missing Token" });
+    }
     const decoded = jwt.verify(token, "todomernapplication1234@#1234", {
-      algorithm: "HS256",
+      algorithms: ["HS256"],
     });
+    console.log("Decoded payload:", decoded);
+    if (!decoded) {
+      return res.json({ status: "error", error: "Invalid token payload" });
+    }
     const email = decoded.email;
+    if (!email) {
+      return res.json({ status: "error", error: "Mising email property" });
+    }
     const user = await User.findOne({ email: email });
-    return res.json({ status: "ok" });
+
+    if (!user) {
+      return res.json({ status: "error", error: "User not found" });
+    }
+    console.log(user.todo);
+
+    return res.json({ status: "ok", todo: user.todo });
   } catch (error) {
     console.log(error);
     res.json({ status: "error", error: "Invalid token" });
@@ -77,8 +93,11 @@ app.post("/api/home", async (req, res) => {
       algorithms: ["HS256"],
     });
     const email = decoded.email;
-    const user = await User.findOne({ email: email });
-    return res.json({ status: "ok", email: email });
+    const user = await User.updateOne(
+      { email: email },
+      { $push: { todo: req.body.todo } }
+    );
+    return res.json({ status: "ok" });
   } catch (error) {
     console.log(error);
     res.json({ status: "error", error: "Invalid token" });
